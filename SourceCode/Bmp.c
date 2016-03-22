@@ -106,15 +106,15 @@ tError BmpRead(char *pFilename, tBmp *pBmp)
 	if(pFile == NULL)
 		return ErrorFileOpen; // if file open fails return error
 
-	byte headerBuffer[sizeof(pBmp->header)];
-	byte infoHeaderBuffer[sizeof(pBmp->infoHeader)];
+	byte headerBuffer[cSizeofBmpHeader];
+	byte infoHeaderBuffer[cSizeofBmpInfoHeader];
 
 	if(FileRead(pFile, &headerBuffer, sizeof(byte), sizeof(headerBuffer)))
 		return ErrorFileRead;
 	if(FileRead(pFile, &infoHeaderBuffer, sizeof(byte), sizeof(infoHeaderBuffer)))
 		return ErrorFileRead;
 
-
+	printf("%d %d\n", sizeof(headerBuffer), sizeof(infoHeaderBuffer));
 	BmpCalcFileSize(4,5);
 	// copy headerBuffer to pBmp->header
 	pBmp->header.sigB = headerBuffer[0];
@@ -146,11 +146,11 @@ tError BmpRead(char *pFilename, tBmp *pBmp)
 
 	int pixelPadding = BmpCalcPad(pBmp->infoHeader.width);
 	int pixelRowWidth = (3 * pBmp->infoHeader.width) + pixelPadding;
-	byte *pixelBuffer = (byte *) malloc(pixelRowWidth);
+	byte pixelBuffer[pixelRowWidth];
 
-
+	printf("%d\n", pixelRowWidth);
 	for(int row = 0; row < pBmp->infoHeader.height; row++) {
-		printf("Here\n");
+		
 		if(FileRead(pFile, pixelBuffer, sizeof(byte), pixelRowWidth))
 			return ErrorFileRead;
 		for(int col = 0; col < pBmp->infoHeader.width; col++) {
