@@ -17,7 +17,14 @@
  *------------------------------------------------------------------------------------------------------------*/
 void ImageFlipHoriz(tBmp *pBmp)
 {
-
+	tPixel pixel;
+	for(int row = 0; row < pBmp->infoHeader.height; row++) {
+		for(int col = 0; col < pBmp->infoHeader.width / 2; col++) {
+			pixel = pBmp->pixel[row][col];
+			pBmp->pixel[row][col] = pBmp->pixel[row][pBmp->infoHeader.width - col];
+			pBmp->pixel[row][pBmp->infoHeader.width - col] = pixel;
+		}
+	}
 }
 
 /*--------------------------------------------------------------------------------------------------------------
@@ -25,6 +32,7 @@ void ImageFlipHoriz(tBmp *pBmp)
  *------------------------------------------------------------------------------------------------------------*/
 void ImageRotRight(tBmp *pBmp)
 {
+	tPixel pCol[pBmp->infoHeader.height];
 
 }
 
@@ -66,5 +74,10 @@ void ImageRotRightMult(tBmp *pBmp, int nTimes)
  *------------------------------------------------------------------------------------------------------------*/
 void ImageFlipVert(tBmp *pBmp)
 {
-
+	tPixel *pPixel;
+	for(int row = 0; row < pBmp->infoHeader.height / 2; row++) {
+		pPixel = pBmp->pixel[row];
+		pBmp->pixel[row] = pBmp->pixel[pBmp->infoHeader.height - row];
+		pBmp->pixel[pBmp->infoHeader.height - row] = pPixel;
+	}
 }

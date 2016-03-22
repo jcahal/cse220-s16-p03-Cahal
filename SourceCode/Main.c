@@ -6,8 +6,6 @@
  *
  * CSE 220
  **************************************************************************************************************/
-#include "K1as.hpp"
-
 
 #include <stdbool.h>  // For bool data type
 #include <stdio.h>    // For printf()
