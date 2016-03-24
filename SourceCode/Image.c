@@ -7,6 +7,7 @@
  * CSE 220
  **************************************************************************************************************/
 #include "Bmp.h"
+#include <stdio.h>
 
 //==============================================================================================================
 // FUNCTION DEFINITIONS
@@ -32,8 +33,25 @@ void ImageFlipHoriz(tBmp *pBmp)
  *------------------------------------------------------------------------------------------------------------*/
 void ImageRotRight(tBmp *pBmp)
 {
-	tPixel pCol[pBmp->infoHeader.height];
+	tPixel **pPixel = BmpPixelAlloc(pBmp->infoHeader.height, pBmp->infoHeader.width);
 
+	// copy to tmp pPixel
+	for(int row = 0; row < pBmp->infoHeader.width; row++) {
+		for(int col = 0; col < pBmp->infoHeader.height; col++) {
+			pPixel[row][col].blue = pBmp->pixel[(pBmp->infoHeader.height - 1) - col][row].blue;
+			pPixel[row][col].green = pBmp->pixel[(pBmp->infoHeader.height - 1) - col][row].green;
+			pPixel[row][col].red = pBmp->pixel[(pBmp->infoHeader.height - 1) - col][row].red;
+		}
+
+	}
+
+	// free pixel
+	BmpPixelFree(pBmp->pixel, pBmp->infoHeader.height);
+
+	pBmp->pixel = pPixel;
+	int32_t tmp = pBmp->infoHeader.width;
+	pBmp->infoHeader.width = pBmp->infoHeader.height;
+	pBmp->infoHeader.height = tmp;
 }
 
 /*--------------------------------------------------------------------------------------------------------------
@@ -64,9 +82,14 @@ void ImageRotRight(tBmp *pBmp)
  *                                 1 3 5
  *     5 6
  *------------------------------------------------------------------------------------------------------------*/
-void ImageRotRightMult(tBmp *pBmp, int nTimes)
-{
-
+void ImageRotRightMult(tBmp *pBmp, int nTimes) {
+	if(nTimes % 4 == 0) {
+		return;
+	} else {
+		for(int i = 0; i < nTimes; i++) {
+			ImageRotRight(pBmp);
+		}
+	}
 }
 
 /*--------------------------------------------------------------------------------------------------------------
@@ -77,7 +100,7 @@ void ImageFlipVert(tBmp *pBmp)
 	tPixel *pPixel;
 	for(int row = 0; row < pBmp->infoHeader.height / 2; row++) {
 		pPixel = pBmp->pixel[row];
-		pBmp->pixel[row] = pBmp->pixel[pBmp->infoHeader.height - row];
-		pBmp->pixel[pBmp->infoHeader.height - row] = pPixel;
+		pBmp->pixel[row] = pBmp->pixel[(pBmp->infoHeader.height - 1)- row];
+		pBmp->pixel[(pBmp->infoHeader.height - 1)- row] = pPixel;
 	}
 }

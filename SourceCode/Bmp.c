@@ -65,7 +65,7 @@ static int BmpCalcFileSize(int pWidth, int pHeight)
  *------------------------------------------------------------------------------------------------------------*/
 static int BmpCalcPad(int pWidth)
 {
-	return (4 - (3 * (pWidth % 4))) % 4;
+	return (4 - (3 * pWidth) % 4) % 4;
 }
 
 /*--------------------------------------------------------------------------------------------------------------
@@ -100,28 +100,35 @@ void BmpPixelFree(tPixel **pPixel, int pHeight)
  *------------------------------------------------------------------------------------------------------------*/
 tError BmpRead(char *pFilename, tBmp *pBmp)
 {
-	// TODO: Handle any Errors, see 4.4 in the handbook
 	FILE *pFile = FileOpen(pFilename, "rb");
 
-	if(pFile == NULL)
-		return ErrorFileOpen; // if file open fails return error
+	// file open error
+	if(pFile == NULL) {
+		FileClose(pFile);
+		return ErrorFileOpen;
+	}
+	// file to small error
+	if(FileSize(pFilename) < 58) {
+		FileClose(pFile);
+		return ErrorBmpInv;
+	}
 
 	byte headerBuffer[cSizeofBmpHeader];
 	byte infoHeaderBuffer[cSizeofBmpInfoHeader];
 
-	if(FileRead(pFile, &headerBuffer, sizeof(byte), sizeof(headerBuffer)))
+	// file read errors
+	if(FileRead(pFile, &headerBuffer, sizeof(byte), sizeof(headerBuffer))) {
+		FileClose(pFile);
 		return ErrorFileRead;
-	if(FileRead(pFile, &infoHeaderBuffer, sizeof(byte), sizeof(infoHeaderBuffer)))
+	}
+	if(FileRead(pFile, &infoHeaderBuffer, sizeof(byte), sizeof(infoHeaderBuffer))) {
+		FileClose(pFile);
 		return ErrorFileRead;
+	}
 
-	printf("%d %d\n", sizeof(headerBuffer), sizeof(infoHeaderBuffer));
-	BmpCalcFileSize(4,5);
 	// copy headerBuffer to pBmp->header
 	pBmp->header.sigB = headerBuffer[0];
 	pBmp->header.sigM = headerBuffer[1];
-
-	if(pBmp->header.sigB != 'B' || pBmp->header.sigM != 'M')
-		return ErrorBmpInv;
 
 	memcpy(&pBmp->header.fileSize, &headerBuffer[2], sizeof(pBmp->header.fileSize));
 
@@ -141,6 +148,32 @@ tError BmpRead(char *pFilename, tBmp *pBmp)
 
 	memcpy(&pBmp->infoHeader.zeros, &infoHeaderBuffer[16], sizeof(pBmp->infoHeader.zeros));
 
+	// header and infoHeader invalid errors
+	if(pBmp->header.sigB != 'B' || pBmp->header.sigM != 'M') {
+		FileClose(pFile);
+		return ErrorBmpInv;
+	}
+	if(pBmp->header.resv1 != 0 || pBmp->header.resv2 != 0) {
+		FileClose(pFile);
+		return ErrorBmpInv;
+	}
+	if(pBmp->header.pixelOffset != 0x36) {
+		FileClose(pFile);
+		return ErrorBmpInv;
+	}
+	if(pBmp->infoHeader.size != 0x28) {
+		FileClose(pFile);
+		return ErrorBmpInv;
+	}
+	if(pBmp->infoHeader.colorPlanes != 1) {
+		FileClose(pFile);
+		return ErrorBmpInv;
+	}
+	if(pBmp->infoHeader.bitsPerPixel != 0x18) {
+		FileClose(pFile);
+		return ErrorBmpInv;
+	}
+
 	// copy pixelBuffer into pBmp->pixel
 	pBmp->pixel = BmpPixelAlloc(pBmp->infoHeader.width, pBmp->infoHeader.height); // allocate for pixel
 
@@ -148,18 +181,34 @@ tError BmpRead(char *pFilename, tBmp *pBmp)
 	int pixelRowWidth = (3 * pBmp->infoHeader.width) + pixelPadding;
 	byte pixelBuffer[pixelRowWidth];
 
-	printf("%d\n", pixelRowWidth);
 	for(int row = 0; row < pBmp->infoHeader.height; row++) {
-		
-		if(FileRead(pFile, pixelBuffer, sizeof(byte), pixelRowWidth))
+		// file read error
+		if(FileRead(pFile, pixelBuffer, sizeof(byte), pixelRowWidth)) {
+			FileClose(pFile);
 			return ErrorFileRead;
+		}
+
 		for(int col = 0; col < pBmp->infoHeader.width; col++) {
 			memcpy(&pBmp->pixel[row][col].blue, &pixelBuffer[3 * col], sizeof(byte));
 			memcpy(&pBmp->pixel[row][col].green, &pixelBuffer[(3 * col) + 1], sizeof(byte));
 			memcpy(&pBmp->pixel[row][col].red, &pixelBuffer[(3 * col) + 2], sizeof(byte));
 		}
+		for(int i = 3 * pBmp->infoHeader.width; i < pixelRowWidth; i++) {
+			pixelBuffer[i] = 0;
 
-		// TODO: Check for corrupt BMP
+		}
+	}
+
+	// invalid error
+	if(pBmp->header.fileSize != (pBmp->infoHeader.height * pixelRowWidth + 54)) {
+		FileClose(pFile);
+		return ErrorBmpInv;
+	}
+
+	// corrupt error
+	if(FileSize(pFilename) != (pBmp->infoHeader.height * pixelRowWidth + 54)) {
+		FileClose(pFile);
+		return ErrorBmpCorrupt;
 	}
 
 	FileClose(pFile);
@@ -177,8 +226,8 @@ tError BmpWrite(char *pFilename, tBmp *pBmp)
 	if(pFile == NULL)
 		return ErrorFileOpen; // if file open fails return error
 
-	byte headerBuffer[sizeof(pBmp->header)];
-	byte infoHeaderBuffer[sizeof(pBmp->infoHeader)];
+	byte headerBuffer[cSizeofBmpHeader];
+	byte infoHeaderBuffer[cSizeofBmpInfoHeader];
 
 	// copy pBmp->header to headerBuffer
 	headerBuffer[0] = pBmp->header.sigB;
@@ -218,16 +267,15 @@ tError BmpWrite(char *pFilename, tBmp *pBmp)
 			memcpy(&pixelBuffer[(3 * col) + 1], &pBmp->pixel[row][col].green, sizeof(byte));
 			memcpy(&pixelBuffer[(3 * col) + 2], &pBmp->pixel[row][col].red, sizeof(byte));
 		}
+		for(int i = 3 * pBmp->infoHeader.width; i < pixelRowWidth; i++) {
+			pixelBuffer[i] = 0;
+		}
 
 		if(FileWrite(pFile, &pixelBuffer, sizeof(byte), sizeof(pixelBuffer)))
 			return ErrorFileRead;
 	}
 
-	for(int row = 0; row < pBmp->infoHeader.height; row++) {
-		// TODO: not sure if pixelRowWidth will work here as it is not type size_t
-		memcpy(&pixelBuffer[row * pixelRowWidth], &pBmp->pixel[row], pixelRowWidth);
-	}
-
 	FileClose(pFile);
+	//BmpPixelFree(pBmp->pixel, pBmp->infoHeader.height);
 	return ErrorNone;
 }

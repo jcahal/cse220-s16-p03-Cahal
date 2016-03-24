@@ -12,6 +12,7 @@
 #include "Error.h"
 #include "Main.h"
 #include "String.h"
+#include "colors.h"
 
 //==============================================================================================================
 // FUNCTION DEFINITIONS
@@ -23,7 +24,7 @@
 void ErrorExit(tError pError, char *pFmt, ...)
 {
 	char msg[1024];
-	sprintf(msg, "%s: ", cBinary);
+	sprintf(msg, ANSI_COLOR_RED"%s: ", cBinary);
 	va_list argp; va_start(argp, pFmt);
 	for (char *fp = pFmt; fp && *fp; ++fp) {
 		if (*fp != '%') {
@@ -37,6 +38,6 @@ void ErrorExit(tError pError, char *pFmt, ...)
 		}
 	}
 	va_end(argp);
-	printf("%s\n", msg);
+	printf("%s"ANSI_COLOR_RESET"\n", msg);
 	exit(pError);
 }
